@@ -7,20 +7,17 @@ import {
     AddBox, Category, TripOrigin, DragIndicator, EditNote, ArrowBackIosNew, ArrowForwardIos, KeyboardArrowUp,
     KeyboardArrowDown
 } from "@mui/icons-material";
-
-
 import {
     StyledContainer, StyledFormButton, StyledLetterAvatar, StyledFormItemBtn, StyledAddBtn,
     StyledPrimaryButton, StyledSecondaryButton
 } from "./style/MasterFormStyled";
-
 import SearchTextField from './components/SearchTextField';
 import ButtonDropdown from './components/ButtonDropdown';
 import InputTextField from './components/InputTextField';
 import DeleteModal from './components/DeleteModal';
 import Filter from './components/Filter';
-
 import welcomeFormImage from '../../assets/images/welcome-image.svg'
+import axios from 'axios';
 
 const listItems = ['Religion', 'Nationality', 'Section', 'Profession', 'Designation',
     'Class Master', 'Wing'];
@@ -132,14 +129,90 @@ const scrollBarStyle = {
     },
 }
 
+enum tableAction {
+    NEXT = 'NEXT',
+    PREVIOUS = 'PREVIOUS',
+    STORE_PAGE = 'STORE_PAGE',
+    PER_PAGE_CHANGE = 'PER_PAGE_CHANGE',
+    RESET_PAGE = 'RESET_PAGE',
+    SORT = 'SORT'
+  }
+  
+  // An interface for our actions
+  interface CountAction {
+    type: tableAction;
+    payload: any;
+  }
+  
+  // An interface for our state
+  interface tableState {
+    page: number;
+    total: number;
+    perPage: number;
+    orderBy: string;
+    sortBy: string;
+  }
+
+function tableReducer(state: tableState, action: CountAction) {
+    const { type, payload } = action;
+    switch (type) {
+      case tableAction.NEXT:
+        return {
+          ...state,
+          page: state.page + 1,
+        };
+      case tableAction.PREVIOUS:
+        return {
+          ...state,
+          page: state.page - 1,
+        };
+      case tableAction.STORE_PAGE:
+        return {
+          ...state,
+          total: payload,
+        };
+      case tableAction.PER_PAGE_CHANGE:
+        return {
+          ...state,
+          perPage: payload,
+        };
+      case tableAction.RESET_PAGE:
+        return {
+          ...state,
+          page: 1,
+        };
+      case tableAction.SORT:
+        return {
+          ...state,
+          orderBy: payload.orderBy,
+          sortBy: payload.sortBy
+        };
+      default:
+        return state;
+    }
+  }
+
 
 export default function MasterForm() {
     const [showFormContainer, setShowFormContainer] = React.useState(true);
     const [showAddForm, setShowAddForm] = React.useState(false);
     const [isChecked, setIsChecked] = React.useState(false);
     const [selectedForm, setSelectedForm] = React.useState(0);
-    const [tableData, setTableData] = React.useState(tableValue);
+    const [tableData, setTableData] = React.useState([]);
+    const [state, dispatch] = React.useReducer(tableReducer, { page: 1, total: 0, perPage: 10, orderBy: "id", sortBy: "asc" });
     const [selectedItemIndex, setSelectedItemIndex] = React.useState(null);
+
+    React.useEffect(() => {
+        getData(state.page, state.perPage, state.orderBy, state.sortBy);
+    },[])
+
+    const getData = async (page: number, perPage: number, orderBy: string, sortedBy: string) => {
+        const response = await axios.get(`https://tmsv4.stagingcp.co/api/machine-test?limit=${perPage}&page=${page}&orderBy=${orderBy}&sortedBy=${sortedBy}`);
+        if(response.status === 200){
+            setTableData(response.data.data)
+            dispatch({ type: tableAction.STORE_PAGE, payload: response.data.total })
+        }
+    }
 
     const handleCheckboxStatus = () => {
         setIsChecked((prev) => !prev);
@@ -167,7 +240,7 @@ export default function MasterForm() {
         <Stack direction='row' p='14px' gap={1} height='calc(100vh - 110px)'>
 
             {/* left section  */}
-            <Box width='40%' sx={{ overflowY: 'scroll', ...scrollBarStyle }}>
+            {/* <Box width='40%' sx={{ overflowY: 'scroll', ...scrollBarStyle }}>
                 <StyledContainer>
                     <Box p='10px' borderBottom='1px solid #E5E9EB'>
                         <Typography component={'h2'} sx={{ fontSize: 16, fontWeight: 700, color: '#000000' }}>
@@ -218,15 +291,15 @@ export default function MasterForm() {
                         ))}
                     </Stack>
                 </StyledContainer>
-            </Box>
+            </Box> */}
 
             {/* right section  */}
             {showFormContainer ? (
-                <Box width='60%' sx={{ overflowY: 'scroll', ...scrollBarStyle }}>
+                <Box width='100%' sx={{ overflowY: 'scroll', ...scrollBarStyle }}>
                     <StyledContainer>
                         {!showAddForm ? (
                             <Box>
-                                {!isChecked ? (
+                                {/* {!isChecked ? (
                                     <Stack
                                         direction='row' p='15px' justifyContent='space-between' alignItems='center' flexWrap='wrap' rowGap='5px'
                                         sx={{ minHeight: '73px', boxSizing: 'border-box' }}
@@ -253,12 +326,15 @@ export default function MasterForm() {
                                         <StyledSecondaryButton>Change Status</StyledSecondaryButton>
                                         <StyledPrimaryButton>Delete All</StyledPrimaryButton>
                                     </Stack>
-                                )}
+                                )} */}
                                 <Box p={1}>
                                     <DragableTable
                                         checked={isChecked}
                                         handleCheckbox={handleCheckboxStatus}
                                         data={tableData}
+                                        state={state}
+                                        dispatch={dispatch}
+                                        getData={getData}
                                     />
                                 </Box>
                             </Box>
@@ -342,16 +418,16 @@ const dropDowndata = [
     }
 ];
 
-function DragableTable({ checked, handleCheckbox, data }) {
-    const [form, setForm] = React.useState(data);
+function DragableTable({ checked, handleCheckbox, data, state, dispatch, getData }) {
+    // const [form, setForm] = React.useState(data);
     const draggingItem = React.useRef();
     const dragOverItem = React.useRef();
 
-    const handleStatusChange = (value, index) => {
-        let updatedForm = [...form];
-        updatedForm[index].status = value;
-        setForm(updatedForm);
-    };
+    // const handleStatusChange = (value, index) => {
+    //     let updatedForm = [...form];
+    //     updatedForm[index].status = value;
+    //     setForm(updatedForm);
+    // };
 
     const handleDragStart = (e, position) => {
         draggingItem.current = position;
@@ -390,8 +466,11 @@ function DragableTable({ checked, handleCheckbox, data }) {
 
     const [perPageValue, setPerPageValue] = React.useState(10);
 
-    const handlePerPageChange = (event) => {
+    const handlePerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setPerPageValue(event.target.value);
+        dispatch({ type: tableAction.PER_PAGE_CHANGE, payload: event.target.value })
+        dispatch({ type: tableAction.RESET_PAGE, payload: event.target.value })
+        getData(1, event.target.value, state.orderBy, state.sortBy);
     };
 
     return (
@@ -404,37 +483,79 @@ function DragableTable({ checked, handleCheckbox, data }) {
                             fontSize: 13, color: '#5F5F5F', fontWeight: 500, padding: '10px 0px', textAlign: 'center',
                         }
                     }}>
-                        <TableCell></TableCell>
-                        <TableCell>
-                            <MuiCheckbox
-                                checked={checked}
-                                onChange={handleCheckbox}
-                            />
-                        </TableCell>
                         <TableCell>
                             <Stack direction='row' alignItems='center' gap='5px' sx={{ display: 'inline-flex' }}>
-                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Name</Typography>
-                                <Box role='button' sx={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-                                    <KeyboardArrowUp />
-                                    <KeyboardArrowDown sx={{ mt: '-8px' }} />
-                                </Box>
-                            </Stack>
-
-                        </TableCell>
-                        <TableCell>
-                            <Stack direction='row' alignItems='center' gap='5px' sx={{ display: 'inline-flex' }}>
-                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Status</Typography>
-                                <Box role='button' sx={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>ID</Typography>
+                                <Box role='button' sx={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => {
+                                    dispatch({ type: tableAction.SORT, payload: {
+                                        orderBy: "id",
+                                        sortBy: state.sortBy === "desc" ? "asc" : "desc"
+                                    } })
+                                    dispatch({ type: tableAction.RESET_PAGE })
+                                    getData(1, state.perPage, "id", state.sortBy === "desc" ? "asc" : "desc");
+                                }}>
                                     <KeyboardArrowUp />
                                     <KeyboardArrowDown sx={{ mt: '-8px' }} />
                                 </Box>
                             </Stack>
                         </TableCell>
-                        <TableCell align='center'>Action</TableCell>
+                        <TableCell>
+                            <Stack direction='row' alignItems='center' gap='5px' sx={{ display: 'inline-flex' }}>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>First Name</Typography>
+                                <Box role='button' sx={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => {
+                                    dispatch({ type: tableAction.SORT, payload: {
+                                        orderBy: "first_name",
+                                        sortBy: state.sortBy === "desc" ? "asc" : "desc"
+                                    } })
+                                    dispatch({ type: tableAction.RESET_PAGE })
+                                    getData(1, state.perPage, "first_name", state.sortBy === "desc" ? "asc" : "desc");
+                                }}>
+                                    <KeyboardArrowUp />
+                                    <KeyboardArrowDown sx={{ mt: '-8px' }}/>
+                                </Box>
+                            </Stack>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Middile Name</Typography>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Last Name</Typography>
+                        </TableCell>
+                        <TableCell>
+                            <Stack direction='row' alignItems='center' gap='5px' sx={{ display: 'inline-flex' }}>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Email ID</Typography>
+                                <Box role='button' sx={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => {
+                                    dispatch({ type: tableAction.SORT, payload: {
+                                        orderBy: "email_id",
+                                        sortBy: state.sortBy === "desc" ? "asc" : "desc"
+                                    } })
+                                    dispatch({ type: tableAction.RESET_PAGE })
+                                    getData(1, state.perPage, "email_id", state.sortBy === "desc" ? "asc" : "desc");
+                                }}>
+                                    <KeyboardArrowUp />
+                                    <KeyboardArrowDown sx={{ mt: '-8px' }} />
+                                </Box>
+                            </Stack>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Mobile No</Typography>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>DOB</Typography>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Gender</Typography>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Address</Typography>
+                        </TableCell>
+                        <TableCell>
+                                <Typography sx={{ fontSize: 13, color: '#5F5F5F', fontWeight: 500, }}>Languages Known</Typography>
+                        </TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {form.length === 0 || form === null ? (
+                    {data.length === 0 || data === null ? (
                         <TableRow>
                             <TableCell colSpan={5} sx={{
                                 width: '100%', padding: '100px 0', textAlign: 'center',
@@ -444,51 +565,31 @@ function DragableTable({ checked, handleCheckbox, data }) {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        form.map((item, index) => (
+                        data.map((item : any, index: number) => (
                             <TableRow
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, index)}
-                                onDragEnter={(e) => handleDragEnter(e, index)}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDragEnd={handleDragEnd}
-                                key={item.id}
-                                sx={{
-                                    'td': { fontSize: 14, padding: '10px 0px', color: '#0E0E0E', fontWeight: 500, textAlign: 'center', }
-                                }}>
-                                <TableCell sx={{ width: '30px' }}>
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragEnter={(e) => handleDragEnter(e, index)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDragEnd={handleDragEnd}
+                            key={item.id}
+                            sx={{
+                                'td': { fontSize: 14, padding: '10px 0px', color: '#0E0E0E', fontWeight: 500, textAlign: 'center', }
+                            }}>
+                                {/* <TableCell sx={{ width: '30px' }}>
                                     <DragIndicator sx={{ fontSize: 27, color: '#DDE2E4', cursor: 'grab' }} />
-                                </TableCell>
-                                <TableCell sx={{ width: '80px' }}><MuiCheckbox checked={checked} /> </TableCell>
-                                <TableCell>{item.name}</TableCell>
-                                <TableCell>
-                                    <Box sx={{ minWidth: 120 }}>
-
-                                        {/* drop down  */}
-                                        <ButtonDropdown
-                                            value={item.status}
-                                            data={dropDowndata}
-                                            onChange={(data) => handleStatusChange(data, index)}
-                                            style={{
-                                                select: {
-                                                    backgroundColor: item.status === 'active' ? '#e1ecfe' : item.status === 'inactive' ? '#fcd6d6' : '#F5F5F5',
-                                                    color: item.status === 'active' ? '#0e5ee1' : item.status === 'inactive' ? '#ef2424' : '#00000'
-                                                },
-                                                root: { width: '100px' }
-                                            }}
-                                        />
-                                    </Box>
-                                </TableCell>
-                                <TableCell align='center' sx={{ width: '80px', 'button': { color: '#252525', 'svg': { fontSize: 20 } } }}>
-                                    <Stack direction='row' alignItems='center'>
-                                        <IconButton>
-                                            <EditNote />
-                                        </IconButton>
-                                        <DeleteModal />
-                                        <IconButton>
-                                            {/* <DeleteOutline /> */}
-                                        </IconButton>
-                                    </Stack>
-                                </TableCell>
+                                </TableCell> */}
+                                {/* <TableCell sx={{ width: '80px' }}><MuiCheckbox checked={checked} /> </TableCell> */}
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.first_name}</TableCell>
+                                <TableCell>{item.middle_name}</TableCell>
+                                <TableCell>{item.last_name}</TableCell>
+                                <TableCell>{item.email_id}</TableCell>
+                                <TableCell>{item.mobile_no}</TableCell>
+                                <TableCell>{item.dob}</TableCell>
+                                <TableCell>{item.gender}</TableCell>
+                                <TableCell>{item.address}</TableCell>
+                                <TableCell>{item.languages_known || "Not Provided"}</TableCell>
                             </TableRow>
 
                         ))
@@ -506,25 +607,34 @@ function DragableTable({ checked, handleCheckbox, data }) {
                         >
                             <MenuItem value={10}>10</MenuItem>
                             <MenuItem value={20}>20</MenuItem>
-                            <MenuItem value={30}>30</MenuItem>
+                            <MenuItem value={50}>50</MenuItem>
+                            <MenuItem value={100}>100</MenuItem>
                         </Select>
                     </FormControl>
-                    <Typography sx={{ color: '#84919A', fontSize: 13, fontWeight: 400 }}>Pages</Typography>
+                    <Typography sx={{ color: '#84919A', fontSize: 13, fontWeight: 400 }}>Per Rows</Typography>
                 </Stack>
                 <Stack direction='row' alignItems='center' gap='3px'>
-                    <IconButton sx={{ p: '3px' }}>
+                    {state.page !== 1 && <IconButton sx={{ p: '3px' }} onClick={() => {
+                        dispatch({ type: tableAction.PREVIOUS })
+                        getData(state.page - 1, state.perPage, state.orderBy, state.sortBy);
+                    }}>
                         <ArrowBackIosNew />
-                    </IconButton>
+                    </IconButton>}
                     <Stack direction='row' alignItems='center' gap='8px'>
-                        <Typography sx={{ color: '#84919A', fontSize: 13, fontWeight: 400 }}>Page 2 of 12</Typography>
-                        <Stack direction='row' alignItems='center' gap='3px'>
+                        <Typography sx={{ color: '#84919A', fontSize: 13, fontWeight: 400 }}>{`Page ${state.page} of ${Math.ceil(state.total/state.perPage)}`}</Typography>
+                        {/* <Stack direction='row' alignItems='center' gap='3px'>
                             <Typography sx={{ color: '#344054', fontSize: 13, fontWeight: 500 }}>Go to page</Typography>
                             <TextField InputProps={{ defaultValue: 2 }} sx={{ minWidht: 0, 'input': { p: '5px', width: '50px' } }} type='number' />
-                        </Stack>
+                        </Stack> */}
                     </Stack>
-                    <IconButton sx={{ p: '3px' }}>
+                    {Math.ceil(state.total/state.perPage) > 1 && state.page < Math.ceil(state.total/state.perPage) &&
+                    <IconButton sx={{ p: '3px' }} onClick={() => {
+                            dispatch({ type: tableAction.NEXT })
+                            getData(state.page + 1, state.perPage, state.orderBy, state.sortBy);
+                    }}>
                         <ArrowForwardIos />
                     </IconButton>
+                        }
                 </Stack>
             </Stack>
         </>
